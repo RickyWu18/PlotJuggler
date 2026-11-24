@@ -6,6 +6,7 @@
 #include <deque>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -106,6 +107,13 @@ class TopicStorage {
   /// address columns by them), so listings skip it through isColumnRetired(). A chunk holding a value of a retired
   /// column un-retires it.
   void retireValuelessColumns();
+
+  /// Plugin-supplied JSON metadata of a column, kept as sent (validation is the caller's); empty text clears it.
+  /// Kept apart from ColumnDescriptor and untouched by clearChunks(): it describes the column, not its rows.
+  void setFieldMetadata(FieldId field_id, std::string metadata_json);
+
+  /// Empty when the column has none; valid until the next setFieldMetadata().
+  [[nodiscard]] std::string_view fieldMetadata(FieldId field_id) const noexcept;
 
   [[nodiscard]] bool isColumnRetired(FieldId field_id) const noexcept {
     return retired_columns_.count(field_id) != 0;
@@ -217,6 +225,8 @@ class TopicStorage {
   ChunkId evicted_through_chunk_id_ = 0;
   // Shared by every DataWriter of this topic.
   std::unordered_map<std::string, uint32_t> array_expansion_counts_;
+  // JSON text per field id, set by the plugin; ids are dense positions, so the key survives clear and reload.
+  std::unordered_map<FieldId, std::string> field_metadata_;
 };
 
 }  // namespace PJ
